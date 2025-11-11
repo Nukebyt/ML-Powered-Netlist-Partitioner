@@ -1,46 +1,21 @@
-aiohappyeyeballs==2.6.1
-aiohttp==3.13.2
-aiosignal==1.4.0
-altair==5.5.0
-anaconda-anon-usage @ file:///C:/b/abs_886p3e6f3e/croot/anaconda-anon-usage_1753980477179/work
-anaconda-auth @ file:///C:/b/abs_66s84uss7v/croot/anaconda-cloud-auth-split_1747863792543/work
-anaconda-cli-base @ file:///C:/b/abs_e4_l2p3q_7/croot/anaconda-cli-base_1741369468349/work
-annotated-types @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/annotated-types_1729043709318/work
-anyio==4.11.0
-archspec @ file:///croot/archspec_1709217642129/work
-## Minimal, deployable requirements for the FM partitioning Streamlit app.
-
-# Notes:
-# - PyTorch and PyTorch-Geometric (PyG) have platform-specific binary wheels.
-#   Installing them via plain `pip install` can fail on some systems (Windows, GPU).
-#   If you run into build errors, follow the official install guides:
-#   - PyTorch: https://pytorch.org/get-started/locally/
-#   - PyG: https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
+## Minimal, Streamlit-deployable requirements (no local file URLs)
 #
-# Suggested workflow (Windows / PowerShell, CPU):
-# 1) Create & activate a venv:
-#    python -m venv .venv
-#    .\.venv\Scripts\Activate.ps1
-# 2) Install PyTorch first (choose the command that matches your Python/CUDA):
-#    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-# 3) Install PyG following instructions from PyG docs (they provide wheel URLs for your torch version).
-# 4) Finally install the pure-Python requirements below:
-#    pip install -r requirements.txt
+# IMPORTANT: this file must NOT contain entries like "package @ file:///...".
+# Such entries reference local build artifacts that are not available to Streamlit's
+# build environment and will cause errors like "OSError: No such file or directory".
 
+# Core runtime dependencies (pure-Python)
 streamlit>=1.15
 networkx>=3.0
 matplotlib>=3.5
 numpy>=1.24
-
-# PyTorch & related (pick appropriate versions for your platform before deploying)
-torch>=2.0,<3.0
-torchvision>=0.15
-torchaudio>=2.0
-
-# PyTorch Geometric (note: prefer following PyG install guide for matching torch/cu)
-torch-geometric
-
-# Optional / dev
-# pytest (if you add tests)
-pytest>=7.0
 filelock==3.20.0
+
+# NOTE about PyTorch / PyG:
+# PyTorch and PyTorch-Geometric require platform-specific wheels. Install them
+# manually on the host (or via a Docker image) rather than listing them directly
+# in requirements.txt when deploying to hosts that don't provide matching binaries.
+# See:
+#  - https://pytorch.org/get-started/locally/
+#  - https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
+
