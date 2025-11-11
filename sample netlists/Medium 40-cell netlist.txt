@@ -1,0 +1,36 @@
+# Medium 40-cell netlist
+c1 c5 c9 c13
+c2 c6 c10 c14
+c3 c7 c11 c15
+c4 c8 c12 c16
+c17 c18 c19 c20
+c21 c22 c23 c24
+c25 c26 c27 c28
+c29 c30 c31 c32
+c33 c34 c35 c36
+c37 c38 c39 c40
+c1 c10 c18
+c2 c11 c19
+c3 c12 c20
+c4 c17 c21
+c5 c14 c22
+c6 c15 c23
+c7 c16 c24
+c8 c13 c25
+c9 c26 c33
+c10 c27 c34
+c11 c28 c35
+c12 c29 c36
+c13 c30 c37
+c14 c31 c38
+c15 c32 c39
+c16 c29 c40
+c1 c20
+c5 c25
+c9 c30
+c13 c35
+c17 c33
+c21 c37
+c2 c22
+c6 c26
+c10 c31
