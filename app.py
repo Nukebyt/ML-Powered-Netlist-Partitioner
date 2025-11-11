@@ -1,24 +1,26 @@
 import streamlit as st
 import networkx as nx
 import matplotlib.pyplot as plt
-import torch
 from itertools import combinations
 import os
 import sys
 sys.path.append(os.path.dirname(__file__))
+# Import our custom modules. Import the GNN code conditionally so the app can run
+# without torch/pyg installed (useful for lightweight deployment).
+from fm_partitioner import FMPartitioner
+from netlist_generator2 import generate_random_netlist, generate_random_netlist_str
 
-# Import our custom modules
+# Try to import the GNN-related modules. If this fails (usually because torch or
+# torch_geometric aren't installed), set `HAS_GNN = False` and continue — the app
+# will run the standard FM algorithm but skip the ML-guided section.
+HAS_GNN = True
+_gnn_import_error = None
 try:
-    from fm_partitioner import FMPartitioner
+    import torch  # noqa: E402
     from gnn_model import PartitionGNN, convert_to_graph_data, predict_initial_partition
-    # Import the in-memory netlist generator so the UI does not write files to disk
-    from netlist_generator2 import generate_random_netlist, generate_random_netlist_str
 except Exception as e:
-    import traceback
-    st.error("Error importing modules. See details below:")
-    st.error(str(e))
-    st.text(traceback.format_exc())
-    st.stop()
+    HAS_GNN = False
+    _gnn_import_error = e
 
 
 # --- Helper Functions ---
@@ -57,13 +59,17 @@ def draw_partition(G, partitions, title):
     st.pyplot(fig)
 
 
-@st.cache_resource
-def load_model(model_path, num_features):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = PartitionGNN(num_node_features=num_features).to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
-    model.eval()
-    return model, device
+if HAS_GNN:
+    @st.cache_resource
+    def load_model(model_path, num_features):
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = PartitionGNN(num_node_features=num_features).to(device)
+        model.load_state_dict(torch.load(model_path, map_location=device))
+        model.eval()
+        return model, device
+else:
+    def load_model(*args, **kwargs):
+        raise RuntimeError("GNN support is unavailable because torch/torch_geometric failed to import.")
 
 
 # --- MAIN APP ---
@@ -84,12 +90,17 @@ all_models = {
 
 existing_models = {k: v for k, v in all_models.items() if os.path.exists(v)}
 
-if len(existing_models) == 0:
-    st.error("❌ No .pth models found in folder.")
-    st.stop()
-
-selected_model_name = st.selectbox("Select trained model:", list(existing_models.keys()))
-MODEL_PATH = existing_models[selected_model_name]
+MODEL_PATH = None
+if HAS_GNN:
+    if len(existing_models) == 0:
+        st.warning("⚠ No .pth GNN model files found in the app folder. ML-guided partitioning will be disabled.")
+    else:
+        selected_model_name = st.selectbox("Select trained model:", list(existing_models.keys()))
+        MODEL_PATH = existing_models[selected_model_name]
+else:
+    st.info("ML-guided partitioning disabled: torch/torch_geometric not available on this host.")
+    if _gnn_import_error:
+        st.caption(f"Import error: {_gnn_import_error}")
 
 
 # --- 1. Netlist Input Section (Clean Layout) ---
@@ -177,39 +188,55 @@ if st.button("🚀 Run Partitioning Analysis", type="primary"):
 
     st.divider()
 
-    with st.spinner("Running GNN-Guided FM..."):
-        st.subheader("3. FM with GNN-Guided Start")
-        model, device = load_model(MODEL_PATH, num_features=2)
+    # ML-guided stage: only run if GNN support is available and a model is selected
+    if HAS_GNN and MODEL_PATH is not None:
+        with st.spinner("Running GNN-Guided FM..."):
+            st.subheader("3. FM with GNN-Guided Start")
+            try:
+                model, device = load_model(MODEL_PATH, num_features=2)
+                ml_initial_partition = predict_initial_partition(netlist, all_cells, model, device)
 
-        ml_initial_partition = predict_initial_partition(netlist, all_cells, model, device)
+                fm_ml = FMPartitioner(netlist)
+                partitions_ml, cut_size_ml = fm_ml.partition(
+                    max_passes=10,
+                    initial_partition=ml_initial_partition
+                )
 
-        fm_ml = FMPartitioner(netlist)
-        partitions_ml, cut_size_ml = fm_ml.partition(
-            max_passes=10,
-            initial_partition=ml_initial_partition
-        )
-
-        col3, col4 = st.columns([1, 2])
-        with col3:
-            st.metric("Final Cut Size (ML-Guided)", cut_size_ml)
-        with col4:
-            draw_partition(G, partitions_ml, "Final Partition (GNN Start)")
+                col3, col4 = st.columns([1, 2])
+                with col3:
+                    st.metric("Final Cut Size (ML-Guided)", cut_size_ml)
+                with col4:
+                    draw_partition(G, partitions_ml, "Final Partition (GNN Start)")
+            except Exception as e:
+                st.error("ML-guided stage failed:")
+                st.error(str(e))
+                st.info("You can still use the standard FM result above.")
+                MODEL_PATH = None
+    else:
+        st.info("ML-guided partitioning skipped (no torch/pyg or no model selected).")
 
     st.divider()
 
-    st.subheader("📊 4. Comparison & Improvement")
-    improvement = cut_size_random - cut_size_ml
-    delta_percent = (improvement / cut_size_random) * 100 if cut_size_random > 0 else 0
+    # If ML was run, show comparison. Otherwise summarize that only the random FM ran.
+    if HAS_GNN and MODEL_PATH is not None:
+        st.subheader("📊 4. Comparison & Improvement")
+        try:
+            improvement = cut_size_random - cut_size_ml
+            delta_percent = (improvement / cut_size_random) * 100 if cut_size_random > 0 else 0
 
-    st.metric(
-        label="Improvement in Cut Size",
-        value=f"{improvement} cuts",
-        delta=f"{delta_percent:.2f}%"
-    )
+            st.metric(
+                label="Improvement in Cut Size",
+                value=f"{improvement} cuts",
+                delta=f"{delta_percent:.2f}%"
+            )
 
-    if improvement > 0:
-        st.success("✅ GNN start produced a better partition!")
-    elif improvement == 0:
-        st.warning("⚠ Same result as random.")
+            if improvement > 0:
+                st.success("✅ GNN start produced a better partition!")
+            elif improvement == 0:
+                st.warning("⚠ Same result as random.")
+            else:
+                st.error("❌ GNN start was worse.")
+        except NameError:
+            st.info("ML-guided result not available to compare.")
     else:
-        st.error("❌ GNN start was worse.")
+        st.info("Completed standard FM only. Enable torch/pyg and add a .pth model file to run ML-guided partitioning.")
