@@ -10,7 +10,8 @@ networkx>=3.0
 matplotlib>=3.5
 numpy>=1.24
 filelock==3.20.0
-
+torch
+torch-geometric
 # NOTE about PyTorch / PyG:
 # PyTorch and PyTorch-Geometric require platform-specific wheels. Install them
 # manually on the host (or via a Docker image) rather than listing them directly
@@ -18,4 +19,5 @@ filelock==3.20.0
 # See:
 #  - https://pytorch.org/get-started/locally/
 #  - https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html
+
 
