@@ -133,6 +133,7 @@ with col_left:
                 path = os.path.join(TEST_NETLIST_DIR, selected_test_file)
                 with open(path, "r", encoding="utf-8") as f:
                     st.session_state["file_content"] = f.read()
+                    st.session_state["netlist_source"] = "test_file"  # Track source
                 st.success(f"✅ Loaded test netlist: {selected_test_file}")
             except Exception as e:
                 st.error("Failed to load selected netlist:")
@@ -142,14 +143,15 @@ with col_left:
 
 with col_right:
     st.write("OR generate a random netlist:")
-    num_cells = st.number_input("Cells", min_value=2, value=20)
-    num_nets = st.number_input("Nets", min_value=1, value=30)
+    num_cells = st.number_input("Cells", min_value=2, max_value=500, value=20)
+    num_nets = st.number_input("Nets", min_value=1, max_value=500, value=30)
 
     if st.button("⚙ Generate Netlist"):
         try:
             # Use the in-memory generator to avoid creating files on disk
             netlist_text = generate_random_netlist_str(int(num_cells), int(num_nets))
             st.session_state["file_content"] = netlist_text
+            st.session_state["netlist_source"] = "generated"  # Track source
             st.success(f"✅ Generated netlist in-memory ({int(num_cells)} cells, {int(num_nets)} nets)")
 
         except Exception as e:
@@ -157,9 +159,10 @@ with col_right:
             st.error(str(e))
 
 
-# Uploaded file handler
+# Uploaded file handler (highest priority: most recent user action)
 if uploaded_file is not None:
     st.session_state["file_content"] = uploaded_file.getvalue().decode("utf-8")
+    st.session_state["netlist_source"] = "uploaded"  # Track source
 
 
 # Stop if no netlist chosen
