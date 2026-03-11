@@ -1,5 +1,5 @@
 # ML-Powered-Netlist-Partitioner
-# 🧠 ML-Guided Fiduccia–Mattheyses Circuit Partitioning
+# ML-Guided Fiduccia–Mattheyses Circuit Partitioning
 
 [![Python Version](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org/) [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE) [![Built with Streamlit](https://img.shields.io/badge/built%20with-Streamlit-FF4B4B)](https://streamlit.io)
 
@@ -232,7 +232,7 @@ This mimics real circuit netlists where:
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 
